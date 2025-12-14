@@ -1,82 +1,101 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import { token } from "../../utility/tokendeocde";
 
-export const fetchPosts = createAsyncThunk('posts/fetchPosts',async()=>{
-    const response = await axios.get('http://localhost:8081/public/posts')
-    console.log(response.data)
-    return response.data;
-
-})
-  const user = token()
-  
-
-export const addPost = createAsyncThunk('addpost',async({content,image})=>{
-
-     const formData = new FormData();
-     formData.append("userId",user.sub)
-     formData.append("content",content)
-     if(image) {
-        formData.append("imageUrl",image)
-     }
 
 
-    const response = await axios.post("http://localhost:8081/public/addpost",formData,{
-        headers:{
-            "Content-Type": "multipart/form-data"
-        }
-    })
-    return response.data;
-})
+export const fetchPosts = createAsyncThunk("posts/fetchAll", async () => {
+  const res = await axios.get("http://localhost:8081/public/posts");
+  return res.data;
+});
 
-export const addComment = createAsyncThunk("addcomment",async(formdata)=>{
-    const response = await axios.post("http://localhost:8081/public/addcomment",(
-        { userId:parseInt(formdata.userId),
-            text:formdata.text,
-        projectId:formdata.projectId}))
-})
+export const fetchPostDetails = createAsyncThunk("posts/fetchDetails", async (id) => {
+  const res = await axios.get(`http://localhost:8081/public/post/${id}`);
+  return res.data;
+});
 
+export const addPost = createAsyncThunk("posts/add", async ({ content, image }) => {
+  const user = token(); 
+
+  const formData = new FormData();
+  formData.append("userId", user.sub);
+  formData.append("content", content);
+  if (image) formData.append("imageUrl", image);
+
+  const res = await axios.post("http://localhost:8081/public/addpost", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data;
+});
+
+
+export const deletePost = createAsyncThunk("posts/delete", async (id) => {
+  const res = await axios.delete(`http://localhost:8081/public/post/${id}`);
+  return id; 
+});
+
+
+export const addComment = createAsyncThunk("posts/addComment", async ({ userId, text, projectId }) => {
+  const res = await axios.post("http://localhost:8081/public/addcomment", {
+    userId: parseInt(userId),
+    text,
+    projectId,
+  });
+  return res.data;
+});
 
 
 const postsSlice = createSlice({
-    name: 'posts',
-    initialState: {
-        posts:[],
-        status:'idle',
-        error:null,
-    },
-    reducers:{},
-    extraReducers:(builder)=>{
-        builder
-        .addCase(fetchPosts.pending,(state)=>{
-            state.status = "loading";
-            
-        })
-        .addCase(fetchPosts.fulfilled,(state,action)=>{
-         state.status = "succeeded";
-         state.posts = action.payload; 
-         console.log(action.payload)
-        })
+  name: "posts",
+  initialState: {
+    posts: [],
+    postDetails: null,
+    postsStatus: "idle",
+    detailsStatus: "idle",
+    error: null,
+  },
 
-    .addCase(fetchPosts.rejected,(state,error)=>{
-        state.status = "rejected";
-        state.error = error.messsage;
-    })
+  reducers: {},
 
+  extraReducers: (builder) => {
+    builder
 
-    .addCase(addPost.pending,(state)=>{
-        state.status = "pending"
-        
-    })
+      // 🔹 Fetch all posts
+      .addCase(fetchPosts.pending, (state) => {
+        state.postsStatus = "loading";
+      })
+      .addCase(fetchPosts.fulfilled, (state, action) => {
+        state.postsStatus = "succeeded";
+        state.posts = action.payload;
+      })
+      .addCase(fetchPosts.rejected, (state, action) => {
+        state.postsStatus = "failed";
+        state.error = action.error.message;
+      })
 
-    .addCase(addPost.fulfilled,(state,action)=>{
-        state.status = "fulfilled"
-        console.log(action.payload)
-        state.posts.push(action.payload) 
-    })
-    }
+      // 🔹 Fetch single post details
+      .addCase(fetchPostDetails.pending, (state) => {
+        state.detailsStatus = "loading";
+      })
+      .addCase(fetchPostDetails.fulfilled, (state, action) => {
+        state.detailsStatus = "succeeded";
+        state.postDetails = action.payload;
+      })
+      .addCase(fetchPostDetails.rejected, (state, action) => {
+        state.detailsStatus = "failed";
+        state.error = action.error.message;
+      })
 
-})
+      // 🔹 Add new post
+      .addCase(addPost.fulfilled, (state, action) => {
+        state.posts.push(action.payload);
+      })
 
+      // 🔹 Delete post
+      .addCase(deletePost.fulfilled, (state, action) => {
+        state.posts = state.posts.filter((p) => p.id !== action.payload);
+      });
+  },
+});
 
 export default postsSlice.reducer;

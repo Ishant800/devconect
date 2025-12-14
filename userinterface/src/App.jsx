@@ -1,29 +1,46 @@
 
 import { BrowserRouter, Route, Routes } from "react-router-dom"
-import HomePage from "./pages/homepage"
+
 import SignupPage from "./pages/signup"
 import LoginPage from "./pages/login"
-import ProtectedRoute from "./components/protectedRoute"
-import CreatePostForm from "./components/showcreatePost"
-import ProfilePage from "./components/profilepage"
 import { Toaster } from "react-hot-toast"
-import Dashboard from "./pages/dashboard"
+
+import AuthLayout from "./layouts/authLayout"
+import DashboardLayout from "./layouts/DashboardLayout"
+import ProtectedRoute from "./routes/protectedRoute"
+import FeedSection from "./pages/feedSection"
+import ProfilePage from "./cmpt/profilepage"
+import ChatSection from "./cmpt/chatSection"
 
 function App(){
 return(
+  <>
+     
   <BrowserRouter>
   <Routes>
-    <Route path="/home" element={<ProtectedRoute>
-      <HomePage/>
-      </ProtectedRoute>} />
-    <Route path="/auth/signup" element={<SignupPage/>} />
-    <Route path="/auth/login" element={<LoginPage/>} />
- <Route path="/createpost" element={<CreatePostForm/>} />
- <Route path="/profilepage" element={<ProfilePage/>} />
-    <Route path="*" element={<LoginPage/>} />
-     <Route path="/dashboard" element={<Dashboard/>} />
+    
+       {/* Auth routes */}
+       <Route element={<AuthLayout/>}>
+       <Route path="/login" element={<LoginPage/>}/>
+       <Route path="/signup" element={<SignupPage/>}/>
+       </Route>
+
+       {/* Dashbaord routes */}
+       <Route element={<ProtectedRoute/>}>
+       <Route element={<DashboardLayout/>}>
+       <Route path="/" element={<FeedSection/>} />
+       <Route path="/profile" element={<ProfilePage/>}/>
+       <Route path="/chat" element={<ChatSection/>}/>
+       <Route path="/setting" element={<h2>Hello setting page</h2>}/>
+       </Route>
+       
+       </Route>
+
+
   </Routes>
-  <Toaster position="top-right"
+ 
+  </BrowserRouter>
+ <Toaster position="top-center"
   toastOptions={{
     style: {
       background: "#333",
@@ -31,8 +48,8 @@ return(
       borderRadius: "10px",
     },
   }}/>
-  </BrowserRouter>
-
+  </>
+  
 
 )
 
