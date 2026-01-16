@@ -35,4 +35,9 @@ public class PostController {
     public ResponseEntity<List<Post>> getallpost(){
         return ResponseEntity.ok(service.getAllpost());
     }
+
+    @GetMapping("/public/post/{id}")
+    public ResponseEntity<Post> getData(@PathVariable Long id){
+        return ResponseEntity.ok(service.getPostById(id));
+    }
 }

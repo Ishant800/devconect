@@ -13,11 +13,13 @@ public class Comment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String content;
-    private LocalDateTime cerateAt;
+    private LocalDateTime ceratedAt;
 
-    @ManyToOne @JoinColumn(name = "user_id")
+    @ManyToOne
+    @JoinColumn(name = "user_id")
     private User user;
+
     @ManyToOne
     @JoinColumn(name = "post_id")
-    private Post post;
+    private Post posts;
 }

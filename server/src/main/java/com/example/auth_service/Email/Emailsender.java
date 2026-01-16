@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Service
 public class Emailsender {
+
     @Autowired
     private JavaMailSender javaMailSender;
 
@@ -19,8 +20,6 @@ public class Emailsender {
         message.setTo(toemail);
         message.setSubject("OTP(one time password)");
         message.setText("Your Otp is "+ otp);
-
         javaMailSender.send(message);
-
     }
 }

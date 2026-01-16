@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.cglib.core.Local;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -23,6 +24,7 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long Id;
+
     @Column(nullable = false,unique = true)
     private String email;
 
@@ -32,15 +34,20 @@ public class User {
     @Column(nullable = false)
     private String password;
 
-    private String role;
-    private LocalDateTime createdAt = LocalDateTime.now();
+    @Column(updatable = false)
+    private LocalDateTime createdAt ;
 
+    private LocalDateTime updatedAt;
+    private String role;
     private String bio;
+
     private String profileImage;
-    private String skills;
+    private String address;
+    private String country;
+
     @ManyToMany
     @JoinTable(
-            name = "user_follwowers",
+            name = "user_followers",
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "follower_id")
     )
@@ -49,5 +56,16 @@ public class User {
     @OneToMany(mappedBy = "user",cascade = CascadeType.ALL)
     @JsonIgnore
     private List<Post> posts = new ArrayList<>();
+
+    @PrePersist
+    private void onCreate(){
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    private void onUpdate(){
+        updatedAt = LocalDateTime.now();
+    }
 
 }

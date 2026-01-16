@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+    <style>
+        #messages {
+            border:1px solid #ccc;
+            height:300px;
+            overflow:auto;
+            padding:5px;
+            font-family: monospace;
+        }
+        #message {
+            width: 60%;
+        }
+    </style>
+</head>
+<body>
+<h2>WebSocket Client</h2>
+
+<div>
+    <button onclick="connect()">Connect</button>
+    <button onclick="disconnect()">Disconnect</button>
+</div>
+
+<div>
+    <input type="text" id="message" placeholder="Type message">
+    <button onclick="send()">Send</button>
+</div>
+
+<div id="messages"></div>
+
+<script>
+    let socket;
+
+    function connect() {
+        if(socket && socket.readyState === WebSocket.OPEN) {
+            addMessage("⚠ Already connected");
+            return;
+        }
+
+        socket = new WebSocket("ws://localhost:8081/ws");
+
+        socket.onopen = function(event) {
+            addMessage("✅ Connected to server!");
+        };
+
+        socket.onmessage = function(event) {
+            addMessage(event.data);
+        };
+
+        socket.onerror = function(event) {
+            addMessage("❌ Error: " + event);
+        };
+
+        socket.onclose = function(event) {
+            addMessage("⚠ Disconnected from server!");
+        };
+    }
+
+    function send() {
+        if(!socket || socket.readyState !== WebSocket.OPEN) {
+            addMessage("⚠ Cannot send, not connected!");
+            return;
+        }
+
+        const messageInput = document.getElementById("message");
+        const message = messageInput.value.trim();
+        if(!message) return;
+
+        socket.send(message);
+        addMessage("➡ You: " + message);
+        messageInput.value = "";
+    }
+
+    function disconnect() {
+        if(socket) {
+            socket.close();
+            socket = null;
+        } else {
+            addMessage("⚠ Not connected");
+        }
+    }
+
+    function addMessage(msg) {
+        const messages = document.getElementById("messages");
+        const p = document.createElement("p");
+        p.textContent = msg;
+        messages.appendChild(p);
+        messages.scrollTop = messages.scrollHeight;
+    }
+</script>
+</body>
+</html>

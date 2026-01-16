@@ -21,13 +21,28 @@ public class Post {
 
     private String content;
     private String imageUrl;
+
+    @Column(updatable = false)
     private LocalDateTime createdAt;
 
-    @OneToMany(mappedBy = "post",cascade = CascadeType.ALL)
+    private LocalDateTime updatedAt;
+
+
+    @OneToMany(mappedBy = "posts",cascade = CascadeType.ALL)
     private List<Comment> comments = new ArrayList<>();
 
-    @OneToMany(mappedBy = "post",cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "posts",cascade = CascadeType.ALL)
     private List<Like> likes = new ArrayList<>();
 
+    @PrePersist
+    private void onCreate(){
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    private void onUpdate(){
+        updatedAt = LocalDateTime.now();
+    }
 
 }

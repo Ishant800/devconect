@@ -37,7 +37,7 @@ public class SecurityConfig {
                         //allow public pages
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/ws/**","/topic/**", "/app/**","/ws-native").permitAll()
+                        .requestMatchers("/ws/**","/topic/**", "/app/**","/ws-native","/**").permitAll()
                         .requestMatchers("/auth/signup",
                                 "/auth/register",
                                 "/auth/**",

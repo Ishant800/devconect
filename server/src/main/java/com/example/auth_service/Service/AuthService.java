@@ -74,12 +74,9 @@ public class AuthService {
         if(authRepo.existsByUsername(req.getUsername())  ){
             throw new RuntimeException("username already taken");
         }
-
         if(authRepo.existsByEmail(req.getEmail())){
             throw new RuntimeException("email already exists");
         }
-
-
         //save user in auth db
         User auth = new User();
         auth.setEmail(req.getEmail());
@@ -89,24 +86,6 @@ public class AuthService {
 
 
         User saveddata = authRepo.save(auth);
-
-
-        //notify the User service
-//        SignupRequest request = new SignupRequest();
-//        request.setAuthId(saveddata.getId());
-//        request.setUsername(request.getUsername());
-//        request.setBio(request.getBio());
-//        request.setProfilePic(request.getProfilePic());
-
-//        String url = "http://localhost:8082/api/create";
-//        try {
-//            ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
-//            System.out.println("User service response: " + response.getStatusCode());
-//        } catch (Exception e) {
-//            System.out.println("Error calling user service: " + e.getMessage());
-//        }
-
-
         //generate acess token
         String acessToken = jwtUtils.generateAccessToken(
                 saveddata.getId().toString(),
@@ -142,7 +121,6 @@ public class AuthService {
     public User updateUser(UserUpdateDto dto, MultipartFile profileImage) throws IOException {
         User user = authRepo.findById(dto.getUserId()).orElseThrow(()-> new IllegalArgumentException("usern not found"));
         user.setBio(dto.getBio());
-        user.setSkills(dto.getSkills());
         user.setUsername(dto.getUsername());
 
 
