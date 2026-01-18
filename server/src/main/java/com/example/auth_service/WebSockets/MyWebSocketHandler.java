@@ -1,133 +1,141 @@
-package com.example.auth_service.WebSockets;
-
-import org.springframework.web.socket.*;
-import org.springframework.web.socket.handler.TextWebSocketHandler;
-import java.io.IOException;
-import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
-public class MyWebSocketHandler extends TextWebSocketHandler {
-    //store all connected users
-    private static final Map<String,WebSocketSession> sessions = new ConcurrentHashMap<>();
-    //store user info
-    private static final Map<String,String> userNames = new ConcurrentHashMap<>();
-
-
-    //1. when client connects
-    @Override
-    public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        String sessionId = session.getId();
-        sessions.put(sessionId,session);
-        System.out.println("New connection! " + sessionId);
-        System.out.println("Remote address: "+ session.getRemoteAddress());
-        System.out.println("Total connections: "+ sessions.size());
-
-        String welcomeMsg = "Welcome! Your session ID: " + sessionId +
-                "\n Send 'name:YOUR_NAME' to set your name" +
-                "\n Send 'list' to see all users" +
-                "\n Send 'broadcast:MESSAGE' to broadcast to everyone";
-
-        session.sendMessage(new TextMessage(welcomeMsg));
-
-    }
-
-    @Override
-    protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception{
-        String sessionId = session.getId();
-        String payload = message.getPayload().trim();
-        String userName = userNames.getOrDefault(sessionId,"Guest-"+ sessionId.substring(0,6));
-
-
-        System.out.println("Received Text from "+userName + ": "+ payload);
-        //handle different commands3
-        if(payload.startsWith("name:")){
-            //set user name
-            String newName = payload.substring(5).trim();
-
-            if(newName.isBlank() || newName.length() > 20){
-                session.sendMessage(new TextMessage("Invalid name. User 1-20 characters."));
-                return;
-
-            }
-            userNames.put(sessionId,newName);
-            session.sendMessage(new TextMessage("Name set to: "+ newName));
-        }else if(payload.startsWith("broadcast:")){
-            //broadcast message
-            String msg = payload.substring(10).trim();
-            if(!msg.isEmpty()){
-                broadcastToAll(" "+ userName + ": "+msg);
-            }
-        }
-        else if(payload.startsWith("pm:")){
-            //private message format: pm:username:message
-            String[] parts = payload.split(":",3);
-            if(parts.length < 3){
-                session.sendMessage(new TextMessage("X Invalid PM format. Use pm:username:message"));
-                return ;
-            }
-            String targetName = parts[1].trim();
-            String pmMessage = parts[2].trim();
-
-            boolean sent = false;
-            for(Map.Entry<String,String> entry : userNames.entrySet()){
-                if(entry.getValue().equalsIgnoreCase(targetName)){
-                    WebSocketSession targetSession = sessions.get(entry.getKey());
-                    if(targetSession != null && targetSession.isOpen()){
-                        targetSession.sendMessage(new TextMessage("PM from "+ userName + ": "+pmMessage));
-                        session.sendMessage(new TextMessage("Pm message sent to "+ targetName));
-                        sent = true;
-                        break;
-                    }
-                }
-            }
-            if(!sent){
-                session.sendMessage(new TextMessage("User "+ targetName + "not found or offline."));
-            }
-
-        }
-        else{
-           session.sendMessage(new TextMessage("🕒 [" + LocalDateTime.now() + "] " + userName + ": " + payload));
-        }
-    }
-
-    private void broadcastToAll(String message) throws IOException{
-        for(WebSocketSession s: sessions.values()){
-            if(s.isOpen()){
-
-                try{
-                    s.sendMessage(new TextMessage(message));
-                }catch (IOException e){
-                    System.out.println("Failed to send to "+ s.getId());
-                }
-            }
-        }
-    }
-
-
-    @Override
-    public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
-        System.out.println("Error occurred: "+ exception.getMessage());
-    }
-
-    @Override
-    public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) throws Exception {
-        String sessionId = session.getId();
-        String userName = userNames.getOrDefault(sessionId,"Guest");
-        sessions.remove(sessionId);
-        userNames.remove(sessionId);
-        System.out.println("Connection closed. Remaining: "+ sessions.size());
-
-        if(!sessions.isEmpty()){
-            broadcastToAll("\uD83D\uDC4B" + userName + "left the chat");
-        }
-
-
-    }
-
-    @Override
-    public boolean supportsPartialMessages() {
-        return false;
-    }
-}
+//package com.example.auth_service.WebSockets;
+//
+//import com.fasterxml.jackson.databind.ObjectMapper;
+//import org.springframework.stereotype.Component;
+//import org.springframework.web.socket.*;
+//import org.springframework.web.socket.handler.TextWebSocketHandler;
+//import java.io.IOException;
+//import java.time.LocalDateTime;
+//import java.util.Map;
+//import java.util.concurrent.ConcurrentHashMap;
+//
+//@Component
+//public class MyWebSocketHandler extends TextWebSocketHandler {
+//    //store all connected users
+//    private static final Map<String,WebSocketSession> sessions = new ConcurrentHashMap<>();
+//    //store user info
+//    private static final Map<String,String> userNames = new ConcurrentHashMap<>();
+//    private final ObjectMapper mapper;
+//
+//    public MyWebSocketHandler(ObjectMapper mapper) {
+//        this.mapper = mapper;
+//    }
+//
+//
+//    //1. when client connects
+//    @Override
+//    public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+//
+//        sessions.put(session.getId(),session);
+//        send(session,info("Server","Connected. Use SET_NAME,BROADCAST,PM,LIST"));
+//
+//    }
+//
+//    @Override
+//    protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception{
+//          ChatMessage msg = mapper.readValue(message.getPayload(),ChatMessage.class);
+//          String sessionId = session.getId();
+//          String sender = userNames.getOrDefault(sessionId,"Guest");
+//
+//          switch(msg.getType()){
+//              case "SET_NAME":
+//                  userNames.put(sessionId, msg.getMessage());
+//                  send(session,info("Server","Name set to "+ msg.getMessage()));
+//                  break;
+//
+//              case "BROADCAST"  :
+//                  broadcast(chat("BROADCAST",sender,null,msg.getMessage()));
+//                  break;
+//              case "PM":
+//                  sendPrivate(sender, msg.getTo(), msg.getMessage(), session);
+//                  break;
+//
+//              case "LIST":
+//                  send(session, info("Server", userNames.values().toString()));
+//                  break;
+//
+//              default:
+//                  send(session, info("Server", "Unknown message type"));
+//
+//
+//          }
+//
+//    }
+//
+//    private void broadcastToAll(String message) throws IOException{
+//        for(WebSocketSession s: sessions.values()){
+//            if(s.isOpen()){
+//
+//                try{
+//                    s.sendMessage(new TextMessage(message));
+//                }catch (IOException e){
+//                    System.out.println("Failed to send to "+ s.getId());
+//                }
+//            }
+//        }
+//    }
+//
+//
+//    @Override
+//    public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
+//        System.out.println("Error occurred: "+ exception.getMessage());
+//    }
+//
+//    @Override
+//    public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) throws Exception {
+//       String name = userNames.remove(session.getId());
+//       sessions.remove(session.getId());
+//
+//       if(name != null){
+//           broadcast(info("Server",name + "Left the chat"));
+//       }
+//
+//    }
+//
+//
+//    //helpers functions
+//
+//    private void broadcast(ChatMessage msg) throws IOException{
+//        for(WebSocketSession s : sessions.values()){
+//            if(s.isOpen()) send(s,msg);
+//        }
+//    }
+//
+//
+//    private void sendPrivate(String from , String to,String message,WebSocketSession sender) throws IOException{
+//        for(Map.Entry<String,String> entry: userNames.entrySet()){
+//            if(entry.getValue().equalsIgnoreCase(to)){
+//                WebSocketSession target = sessions.get(entry.getKey());
+//                if(target != null && target.isOpen()){
+//                    send(target,chat("PM",from,to,message));
+//                    send(sender,info("Server","PM Sent to "+ to));
+//                    return;
+//                }
+//            }
+//        }
+//        send(sender,info("Server","User notfound"));
+//    }
+//
+//
+//    private void send(WebSocketSession session,ChatMessage msg)throws IOException{
+//        msg.setTimestamp(LocalDateTime.now());
+//        session.sendMessage(new TextMessage(mapper.writeValueAsString(msg)));
+//    }
+//
+//    private ChatMessage info(String from,String msg){
+//        return chat("INFO",from,null,msg);
+//    }
+//    private ChatMessage chat(String type,String from,String to, String msg){
+//        ChatMessage cm = new ChatMessage();
+//        cm.setType(type);
+//        cm.setFrom(from);
+//        cm.setTo(to);
+//        cm.setMessage(msg);
+//        return cm;
+//    }
+//
+//    @Override
+//    public boolean supportsPartialMessages() {
+//        return false;
+//    }
+//}

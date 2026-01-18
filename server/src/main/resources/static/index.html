@@ -1,93 +1,152 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>WebSocket Test</title>
+    <meta charset="UTF-8">
+    <title>WebSocket Chat Tester</title>
     <style>
-        #messages {
-            border:1px solid #ccc;
-            height:300px;
-            overflow:auto;
-            padding:5px;
-            font-family: monospace;
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
         }
-        #message {
-            width: 60%;
+
+        h2 { text-align: center; }
+
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
+
+        .row {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        input, select, button {
+            padding: 10px;
+            font-size: 14px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        select { width: 150px; }
+
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            flex: 1;
+        }
+
+        button:hover { background: #45a049; }
+
+        #log {
+            border: 1px solid #ccc;
+            height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+            background: #fafafa;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        #log p { margin: 5px 0; }
+        .system { color: #ff5722; font-weight: bold; }
+        .realtime { color: #2196F3; }
     </style>
 </head>
 <body>
-<h2>WebSocket Client</h2>
+<div class="container">
+    <h2>WebSocket Chat Tester</h2>
 
-<div>
-    <button onclick="connect()">Connect</button>
-    <button onclick="disconnect()">Disconnect</button>
+    <div class="row">
+        <button onclick="connect()">Connect</button>
+        <button onclick="disconnect()">Disconnect</button>
+    </div>
+
+    <div class="row">
+        <input id="type" placeholder="Event Type (PM / BROADCAST / NOTIFY / REALTIME)">
+        <input id="to" placeholder="To (for PM)">
+    </div>
+
+    <div class="row">
+        <input id="msg" placeholder="Message">
+        <button onclick="send()">Send</button>
+    </div>
+
+    <h3>Logs</h3>
+    <div id="log"></div>
 </div>
-
-<div>
-    <input type="text" id="message" placeholder="Type message">
-    <button onclick="send()">Send</button>
-</div>
-
-<div id="messages"></div>
 
 <script>
     let socket;
 
     function connect() {
-        if(socket && socket.readyState === WebSocket.OPEN) {
-            addMessage("⚠ Already connected");
-            return;
-        }
+        if(socket && socket.readyState === WebSocket.OPEN) return log("✅ Already connected");
 
-        socket = new WebSocket("ws://localhost:8081/ws");
+        socket = new WebSocket("ws://localhost:8081/ws"); // Update port if needed
 
-        socket.onopen = function(event) {
-            addMessage("✅ Connected to server!");
-        };
+        socket.onopen = () => log("✅ Connected to server");
+        socket.onclose = () => log("❌ Disconnected from server");
+        socket.onerror = (err) => log("⚠️ Error: " + err);
 
-        socket.onmessage = function(event) {
-            addMessage(event.data);
-        };
+        socket.onmessage = e => {
+            try {
+                const data = JSON.parse(e.data);
 
-        socket.onerror = function(event) {
-            addMessage("❌ Error: " + event);
-        };
+                // Determine CSS class
+                let cls = "";
+                if(data.event === "NOTIFY") cls = "system";
+                if(data.event === "REALTIME") cls = "realtime";
 
-        socket.onclose = function(event) {
-            addMessage("⚠ Disconnected from server!");
+                // Show message in logs
+                log(`[${data.event}] ${data.from} → ${data.to || "ALL"}: ${data.message}`, cls);
+            } catch(err) {
+                log("⚠️ Received malformed message: " + e.data);
+            }
         };
     }
 
     function send() {
         if(!socket || socket.readyState !== WebSocket.OPEN) {
-            addMessage("⚠ Cannot send, not connected!");
-            return;
+            return log("⚠️ Not connected!");
         }
 
-        const messageInput = document.getElementById("message");
-        const message = messageInput.value.trim();
-        if(!message) return;
+        const eventType = document.getElementById("type").value.trim().toUpperCase();
+        const toUser = document.getElementById("to").value.trim();
+        const message = document.getElementById("msg").value.trim();
 
-        socket.send(message);
-        addMessage("➡ You: " + message);
-        messageInput.value = "";
+        if(!eventType || !message) {
+            return log("⚠️ Event type and message required!");
+        }
+
+        const payload = {
+            event: eventType,
+            to: toUser,
+            message: message
+        };
+
+        socket.send(JSON.stringify(payload));
+        log(`📤 Sent: [${payload.event}] ${payload.message}`, "system");
     }
 
     function disconnect() {
-        if(socket) {
-            socket.close();
-            socket = null;
-        } else {
-            addMessage("⚠ Not connected");
-        }
+        if(socket) socket.close();
     }
 
-    function addMessage(msg) {
-        const messages = document.getElementById("messages");
+    function log(msg, cls="") {
+        const div = document.getElementById("log");
         const p = document.createElement("p");
         p.textContent = msg;
-        messages.appendChild(p);
-        messages.scrollTop = messages.scrollHeight;
+        if(cls) p.classList.add(cls);
+        div.appendChild(p);
+        div.scrollTop = div.scrollHeight;
     }
 </script>
 </body>
