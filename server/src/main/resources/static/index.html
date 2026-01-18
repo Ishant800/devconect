@@ -4,61 +4,23 @@
     <meta charset="UTF-8">
     <title>WebSocket Chat Tester</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background: #f5f5f5;
-        }
-
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
         h2 { text-align: center; }
-
-        .container {
-            max-width: 600px;
-            margin: auto;
-            background: #fff;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-
-        .row {
-            margin-bottom: 15px;
-            display: flex;
-            gap: 10px;
-        }
-
-        input, select, button {
-            padding: 10px;
-            font-size: 14px;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-        }
-
+        .container { max-width: 600px; margin: auto; background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .row { margin-bottom: 15px; display: flex; gap: 10px; }
+        input, select, button { padding: 10px; font-size: 14px; border-radius: 5px; border: 1px solid #ccc; }
         select { width: 150px; }
-
-        button {
-            background: #4CAF50;
-            color: white;
-            border: none;
-            cursor: pointer;
-            flex: 1;
-        }
-
+        button { background: #4CAF50; color: white; border: none; cursor: pointer; flex: 1; }
         button:hover { background: #45a049; }
-
-        #log {
-            border: 1px solid #ccc;
-            height: 300px;
-            overflow-y: auto;
-            padding: 10px;
-            background: #fafafa;
-            border-radius: 5px;
-            font-size: 14px;
-        }
-
+        #log { border: 1px solid #ccc; height: 300px; overflow-y: auto; padding: 10px; background: #fafafa; border-radius: 5px; font-size: 14px; }
         #log p { margin: 5px 0; }
         .system { color: #ff5722; font-weight: bold; }
         .realtime { color: #2196F3; }
+        .typing { color: #2196F3; font-style: italic; }
+        .info { color: #4CAF50; }
+        .error { color: #f44336; }
+        .pm { color: #9C27B0; }
+        .broadcast { color: #FF9800; }
     </style>
 </head>
 <body>
@@ -68,86 +30,328 @@
     <div class="row">
         <button onclick="connect()">Connect</button>
         <button onclick="disconnect()">Disconnect</button>
+        <button onclick="clearLog()">Clear Log</button>
     </div>
 
     <div class="row">
-        <input id="type" placeholder="Event Type (PM / BROADCAST / NOTIFY / REALTIME)">
-        <input id="to" placeholder="To (for PM)">
+        <select id="eventType">
+            <option value="PM">Private Message (PM)</option>
+            <option value="BROADCAST">Broadcast</option>
+            <option value="NOTIFY">Notification</option>
+            <option value="REALTIME" selected>Realtime (Typing)</option>
+        </select>
+        <input id="toUser" placeholder="To (Username for PM/Realtime)">
+        <input id="username" placeholder="Your Username (Optional)">
     </div>
 
     <div class="row">
-        <input id="msg" placeholder="Message">
-        <button onclick="send()">Send</button>
+        <input id="message" placeholder="Message" oninput="handleTyping()">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <div class="row">
+        <div><strong>Connected Users:</strong> <span id="connectedUsers">None</span></div>
     </div>
 
     <h3>Logs</h3>
-    <div id="log"></div>
+    <div id="log">
+        <p class="info">Ready to connect. Click "Connect" button.</p>
+    </div>
 </div>
 
 <script>
-    let socket;
+    let socket = null;
+    let typingTimeout = null;
+    let isTyping = false;
+    let currentUsername = null;
+    let typingUsers = new Set();
 
     function connect() {
-        if(socket && socket.readyState === WebSocket.OPEN) return log("✅ Already connected");
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            log("✅ Already connected to server", "info");
+            return;
+        }
 
-        socket = new WebSocket("ws://localhost:8081/ws"); // Update port if needed
+        // Get username if provided
+        const usernameInput = document.getElementById("username").value.trim();
+        if (usernameInput) {
+            currentUsername = usernameInput;
+        }
 
-        socket.onopen = () => log("✅ Connected to server");
-        socket.onclose = () => log("❌ Disconnected from server");
-        socket.onerror = (err) => log("⚠️ Error: " + err);
+        // Update WebSocket URL if needed
+        const wsUrl = "ws://localhost:8081/ws";
 
-        socket.onmessage = e => {
-            try {
-                const data = JSON.parse(e.data);
+        try {
+            socket = new WebSocket(wsUrl);
 
-                // Determine CSS class
-                let cls = "";
-                if(data.event === "NOTIFY") cls = "system";
-                if(data.event === "REALTIME") cls = "realtime";
+            socket.onopen = function(event) {
+                log("✅ Connected to WebSocket server", "info");
+                if (currentUsername) {
+                    log(`✅ Username: ${currentUsername}`, "info");
+                }
+            };
 
-                // Show message in logs
-                log(`[${data.event}] ${data.from} → ${data.to || "ALL"}: ${data.message}`, cls);
-            } catch(err) {
-                log("⚠️ Received malformed message: " + e.data);
-            }
-        };
+            socket.onclose = function(event) {
+                if (event.wasClean) {
+                    log("✅ Connection closed cleanly", "info");
+                } else {
+                    log(`❌ Connection lost (code: ${event.code}, reason: ${event.reason || 'No reason provided'})`, "error");
+                }
+                resetTyping();
+            };
+
+            socket.onerror = function(error) {
+                log("⚠️ WebSocket error occurred", "error");
+                console.error("WebSocket Error:", error);
+            };
+
+            socket.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+
+                    // Handle different message types
+                    switch(data.event) {
+                        case "REALTIME":
+                            handleRealtimeMessage(data);
+                            break;
+                        case "NOTIFY":
+                            log(`[SYSTEM] ${data.message}`, "system");
+                            break;
+                        case "PM":
+                            log(`[PM from ${data.from}] ${data.message}`, "pm");
+                            break;
+                        case "BROADCAST":
+                            log(`[BROADCAST from ${data.from}] ${data.message}`, "broadcast");
+                            break;
+                        default:
+                            // Check if it's a welcome/connection message
+                            if (data.message && data.message.includes("User name:")) {
+                                const assignedName = data.message.split(": ")[1];
+                                if (!currentUsername) {
+                                    currentUsername = assignedName;
+                                    log(`✅ Server assigned username: ${currentUsername}`, "info");
+                                }
+                            } else {
+                                log(`[${data.event || 'UNKNOWN'}] ${data.from || 'Unknown'}: ${data.message}`, "info");
+                            }
+                    }
+                } catch (error) {
+                    // Handle non-JSON messages (like welcome messages)
+                    if (event.data.includes("User name:")) {
+                        const assignedName = event.data.split(": ")[1];
+                        if (!currentUsername) {
+                            currentUsername = assignedName;
+                            log(`✅ Server assigned username: ${currentUsername}`, "info");
+                        }
+                    } else {
+                        log(`📥 Raw message: ${event.data}`, "info");
+                    }
+                }
+            };
+
+        } catch (error) {
+            log(`❌ Failed to connect: ${error.message}`, "error");
+        }
     }
 
-    function send() {
-        if(!socket || socket.readyState !== WebSocket.OPEN) {
-            return log("⚠️ Not connected!");
+    function handleRealtimeMessage(data) {
+        if (data.message === "TYPING_ON") {
+            if (data.from !== currentUsername) {
+                typingUsers.add(data.from);
+                updateTypingIndicator();
+            }
+        } else if (data.message === "TYPING_OFF") {
+            typingUsers.delete(data.from);
+            updateTypingIndicator();
+        } else {
+            log(`[REALTIME from ${data.from}] ${data.message}`, "realtime");
         }
+    }
 
-        const eventType = document.getElementById("type").value.trim().toUpperCase();
-        const toUser = document.getElementById("to").value.trim();
-        const message = document.getElementById("msg").value.trim();
+    function handleTyping() {
+        if (!socket || socket.readyState !== WebSocket.OPEN) return;
 
-        if(!eventType || !message) {
-            return log("⚠️ Event type and message required!");
+        const toUser = document.getElementById("toUser").value.trim();
+        const eventType = document.getElementById("eventType").value;
+
+        // Only send typing indicators for REALTIME events with a target
+        if (eventType === "REALTIME" && toUser) {
+            if (!isTyping) {
+                sendTypingIndicator("TYPING_ON", toUser);
+                isTyping = true;
+            }
+
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                sendTypingIndicator("TYPING_OFF", toUser);
+                isTyping = false;
+            }, 1000);
         }
+    }
+
+    function sendTypingIndicator(state, targetUser) {
+        if (!socket || socket.readyState !== WebSocket.OPEN) return;
 
         const payload = {
-            event: eventType,
-            to: toUser,
-            message: message
+            event: "REALTIME",
+            to: targetUser,
+            message: state
         };
 
         socket.send(JSON.stringify(payload));
-        log(`📤 Sent: [${payload.event}] ${payload.message}`, "system");
+    }
+
+    function updateTypingIndicator() {
+        const typingIndicator = document.getElementById("typingIndicator");
+
+        if (typingUsers.size === 0) {
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+            return;
+        }
+
+        if (!typingIndicator) {
+            const div = document.getElementById("log");
+            const p = document.createElement("p");
+            p.id = "typingIndicator";
+            p.classList.add("typing");
+            div.appendChild(p);
+        }
+
+        const names = Array.from(typingUsers);
+        const indicator = document.getElementById("typingIndicator");
+        if (indicator) {
+            if (names.length === 1) {
+                indicator.textContent = `${names[0]} is typing...`;
+            } else if (names.length === 2) {
+                indicator.textContent = `${names[0]} and ${names[1]} are typing...`;
+            } else {
+                indicator.textContent = `${names[0]} and ${names.length - 1} others are typing...`;
+            }
+        }
+    }
+
+    function sendMessage() {
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+            log("⚠️ Not connected to server", "error");
+            return;
+        }
+
+        const eventType = document.getElementById("eventType").value;
+        const toUser = document.getElementById("toUser").value.trim();
+        const message = document.getElementById("message").value.trim();
+
+        if (!message) {
+            log("⚠️ Message cannot be empty", "error");
+            return;
+        }
+
+        // Prepare payload
+        const payload = {
+            event: eventType,
+            message: message
+        };
+
+        // Add 'to' field only if it's specified (for PM and targeted REALTIME)
+        if (toUser) {
+            payload.to = toUser;
+        }
+
+        // Send the message
+        socket.send(JSON.stringify(payload));
+
+        // Log locally
+        switch(eventType) {
+            case "PM":
+                log(`📤 [PM to ${toUser}] ${message}`, "pm");
+                break;
+            case "BROADCAST":
+                log(`📤 [BROADCAST] ${message}`, "broadcast");
+                break;
+            case "NOTIFY":
+                log(`📤 [NOTIFY] ${message}`, "system");
+                break;
+            case "REALTIME":
+                log(`📤 [REALTIME to ${toUser || 'ALL'}] ${message}`, "realtime");
+                break;
+        }
+
+        // Clear message input
+        document.getElementById("message").value = "";
+
+        // Reset typing state
+        if (isTyping && eventType === "REALTIME" && toUser) {
+            sendTypingIndicator("TYPING_OFF", toUser);
+            isTyping = false;
+            clearTimeout(typingTimeout);
+        }
     }
 
     function disconnect() {
-        if(socket) socket.close();
+        if (socket) {
+            socket.close();
+            socket = null;
+            log("✅ Disconnected from server", "info");
+            resetTyping();
+        } else {
+            log("⚠️ Not connected", "error");
+        }
     }
 
-    function log(msg, cls="") {
-        const div = document.getElementById("log");
-        const p = document.createElement("p");
-        p.textContent = msg;
-        if(cls) p.classList.add(cls);
-        div.appendChild(p);
-        div.scrollTop = div.scrollHeight;
+    function clearLog() {
+        document.getElementById("log").innerHTML = '';
+        log("Log cleared", "info");
     }
+
+    function resetTyping() {
+        typingUsers.clear();
+        updateTypingIndicator();
+        isTyping = false;
+        clearTimeout(typingTimeout);
+    }
+
+    function log(message, className = "") {
+        const logDiv = document.getElementById("log");
+        const p = document.createElement("p");
+        p.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+
+        if (className) {
+            p.classList.add(className);
+        }
+
+        logDiv.appendChild(p);
+        logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(event) {
+        // Ctrl+Enter to send message
+        if (event.ctrlKey && event.key === 'Enter') {
+            event.preventDefault();
+            sendMessage();
+        }
+
+        // Escape to clear message
+        if (event.key === 'Escape') {
+            document.getElementById("message").value = "";
+        }
+    });
+
+    // Initialize
+    document.getElementById("eventType").addEventListener("change", function() {
+        const eventType = this.value;
+        const toInput = document.getElementById("toUser");
+
+        // Show/hide "to" field based on event type
+        if (eventType === "PM" || eventType === "REALTIME") {
+            toInput.placeholder = "To (Username required)";
+            toInput.style.display = "block";
+        } else {
+            toInput.placeholder = "To (Optional)";
+            toInput.style.display = "block";
+        }
+    });
 </script>
 </body>
 </html>

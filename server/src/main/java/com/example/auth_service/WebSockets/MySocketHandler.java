@@ -112,7 +112,13 @@ public class MySocketHandler extends TextWebSocketHandler {
     //7d . realtime event(typing / live updates)
     private void handleRealtime(ChatMessage msg){
         // no persistence, just fast broadcast
-        handleBroadCast(msg);
+        if(msg.getTo() != null){
+            WebSocketSession target = findSessionByUser(msg.getTo());
+            if(target != null && target.isOpen()){
+                send(target,msg);
+            }
+        }
+        else handleBroadCast(msg);
     }
 
     //8 . helper methods
