@@ -125,8 +125,7 @@ public class AuthService {
 
 
         if(profileImage != null && !profileImage.isEmpty()){
-            Map uplaodResult = cloudinaryService.uplaodFile(profileImage);
-            String imageUrl = uplaodResult.get("secure_url").toString();
+           String imageUrl = cloudinaryService.uplaodFile(profileImage);
             user.setProfileImage(imageUrl);
         }
 

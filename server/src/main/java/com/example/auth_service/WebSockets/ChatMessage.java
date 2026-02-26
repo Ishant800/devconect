@@ -15,7 +15,10 @@ public class ChatMessage {
     private String event;
     private String from;
     private String to;
+
     private String message;
+    //file url from cloudinary
+    private String fileUrl;
     @JsonFormat(shape = JsonFormat.Shape.STRING,pattern ="yyyy-MM-dd HH:mm:ss")
     private LocalDateTime timestamp;
 

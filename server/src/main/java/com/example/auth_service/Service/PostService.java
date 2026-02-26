@@ -39,8 +39,7 @@ public class PostService {
         post.setCreatedAt(LocalDateTime.now());
 
         if(postImage != null && !postImage.isEmpty()){
-            Map uploadResult = cloudinaryService.uplaodFile(postImage);
-            String imageUrl = uploadResult.get("secure_url").toString();
+            String imageUrl = cloudinaryService.uplaodFile(postImage);
             post.setImageUrl(imageUrl);
         }
 

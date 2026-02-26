@@ -30,8 +30,8 @@ public class ProjectService {
 
         if(projectImage != null && !projectImage.isEmpty()){
 
-            Map uploadResult = cloudinaryService.uplaodFile(projectImage);
-            project.setProjectImage(uploadResult.get("secure_url").toString());
+           String imageUrl = cloudinaryService.uplaodFile(projectImage);
+            project.setProjectImage(imageUrl);
         }
 
 

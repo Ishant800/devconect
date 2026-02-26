@@ -20,9 +20,11 @@ public class WebsocketConfig implements WebSocketConfigurer {
     //mysockethandler
     public final MySocketHandler mySocketHandler;
     public final BinarySocketHandler binarySocketHandler;
-    public WebsocketConfig(MySocketHandler mySocketHandler, BinarySocketHandler binarySocketHandler){
+    public final FileUploadHandler fileUploadHandler;
+    public WebsocketConfig(MySocketHandler mySocketHandler, BinarySocketHandler binarySocketHandler, FileUploadHandler fileUploadHandler){
         this.mySocketHandler = mySocketHandler;
         this.binarySocketHandler = binarySocketHandler;
+        this.fileUploadHandler = fileUploadHandler;
     }
 
 
@@ -30,6 +32,7 @@ public class WebsocketConfig implements WebSocketConfigurer {
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(mySocketHandler,"/ws")
                 .addHandler(binarySocketHandler,"/ws-binary")
+                .addHandler(fileUploadHandler,"/ws-file")
                 .setAllowedOrigins("*");
 
     }

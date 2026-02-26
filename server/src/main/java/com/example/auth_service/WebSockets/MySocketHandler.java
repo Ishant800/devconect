@@ -2,9 +2,8 @@ package com.example.auth_service.WebSockets;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
-import org.springframework.web.socket.CloseStatus;
-import org.springframework.web.socket.TextMessage;
-import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.*;
+
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.time.LocalDateTime;
@@ -14,133 +13,351 @@ import java.util.function.Consumer;
 
 @Component
 public class MySocketHandler extends TextWebSocketHandler {
-    //1.shared memory for sessions
 
-    //key = session ID and in Value we store webSocketSession object
-    private static final Map<String ,WebSocketSession > sessions = new ConcurrentHashMap<>();
+    /*
+     ============================================================
+     1. SHARED MEMORY STORAGE
+     ============================================================
 
-    //key = sessionId and in value we store names
-    private static final Map<String ,String> users = new ConcurrentHashMap<>();
+     sessions → stores active websocket sessions
+     users → maps sessionId → username
 
-    // 2.objectmapper initialize the objectmapper for converting  json to objects
+     Why ConcurrentHashMap?
+     Because multiple users access simultaneously (thread-safe)
+    */
+
+    private static final Map<String, WebSocketSession> sessions =
+            new ConcurrentHashMap<>();
+
+    private static final Map<String, String> users =
+            new ConcurrentHashMap<>();
+
+
+    /*
+     ============================================================
+     2. OBJECT MAPPER
+
+     Used to convert:
+
+     JSON → ChatMessage object
+     ChatMessage object → JSON
+    */
+
     private final ObjectMapper objectMapper;
 
 
-    // 3.event -> handler mapping
-    private final Map<String , Consumer<ChatMessage>> handlers = new ConcurrentHashMap<>();
+    /*
+     ============================================================
+     3. EVENT HANDLER REGISTRY
 
-    // .this is a constructor not a big deal
+     event name → handler method mapping
+
+     Example:
+     PM → handlePrivateMessage
+     BROADCAST → handleBroadcast
+    */
+
+    private final Map<String, Consumer<ChatMessage>> handlers =
+            new ConcurrentHashMap<>();
+
+
+    /*
+     ============================================================
+     4. CONSTRUCTOR
+
+     Register all supported event handlers here
+    */
+
     public MySocketHandler(ObjectMapper objectMapper) {
+
         this.objectMapper = objectMapper;
-        handlers.put("PM",this::handlePrivateMessage);
-        handlers.put("BROADCAST",this::handleBroadCast);
-        handlers.put("NOTIFY",this::handleNotifications);
-        handlers.put("REALTIME",this::handleRealtime);
+
+        handlers.put("PM", this::handlePrivateMessage);
+
+        handlers.put("BROADCAST", this::handleBroadcast);
+
+        handlers.put("NOTIFY", this::handleNotification);
+
+        handlers.put("REALTIME", this::handleRealtimeEvent);
+
+        handlers.put("FILE", this::handleFileMessage); // for file URLs
     }
 
-    //4.constructor : register event handlers
 
+    /*
+     ============================================================
+     5. CONNECTION ESTABLISHED
 
-    // connections lifecycle
-    @Override
-    public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-
-        sessions.put(session.getId(),session);
-        // temporary assign user as "User" + sessionId(in real app, login Sets name)
-        users.put(session.getId(),"User"+session.getId().substring(0,4));
-        System.out.println("new connection: "+users.get(session.getId()));
-        session.sendMessage(new TextMessage("User name: "+users.get(session.getId())));
-    }
-
-    //main methods
-    @Override
-    public void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
-
-        //1.converts json string to java objects
-        ChatMessage msg = objectMapper.readValue(message.getPayload(),ChatMessage.class);
-
-        //2 attach sender and timestamp (never trust client!)
-        msg.setFrom(users.get(session.getId()));
-        msg.setTimestamp(LocalDateTime.now());
-
-
-        // 3.look up handler . type means the event name
-        Consumer<ChatMessage> handler = handlers.get(msg.getEvent());
-
-        //4. unknown event? tell client
-        if(handler == null){
-            session.sendMessage(new TextMessage("Unknown event: "+ msg.getEvent()));
-            return ;
-        }
-
-        handler.accept(msg);
-
-    }
-
+     Called when new client connects
+    */
 
     @Override
-    public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) throws Exception {
-        System.out.println("Connection closed: "+users.get(session.getId()));
-        sessions.remove(session.getId());
-        users.remove(session.getId());
+    public void afterConnectionEstablished(WebSocketSession session)
+            throws Exception {
+
+        // Store session
+        sessions.put(session.getId(), session);
+
+        // Assign temporary username
+        String username = "User_" + session.getId().substring(0, 5);
+
+        users.put(session.getId(), username);
+
+        System.out.println("Connected: " + username);
+
+        // Notify client of assigned username
+        session.sendMessage(
+                new TextMessage("Connected as: " + username)
+        );
     }
 
-    // 7a. handlers method means helping methods
-    private void handlePrivateMessage(ChatMessage message){
-        WebSocketSession target = findSessionByUser(message.getTo());
-        System.out.println(target);
-        if(target != null && target.isOpen()){
-            send(target,message);
-        }
 
-    }
+    /*
+     ============================================================
+     6. MAIN MESSAGE HANDLER
 
-    //7b. Broadcast message
-    private void handleBroadCast(ChatMessage message){
-        sessions.values().forEach(s-> {
-            if (s.isOpen()) send(s,message);
-        });
-    }
+     Called when client sends message
+    */
 
-    // 7c. notifications
-    private void handleNotifications(ChatMessage message){
-       // or any from name
-        message.setFrom("System");
-        handleBroadCast(message); // system message goes to everyone so that's why
-    }
+    @Override
+    protected void handleTextMessage(
+            WebSocketSession session,
+            TextMessage textMessage
+    ) throws Exception {
 
-    //7d . realtime event(typing / live updates)
-    private void handleRealtime(ChatMessage msg){
-        // no persistence, just fast broadcast
-        if(msg.getTo() != null){
-            WebSocketSession target = findSessionByUser(msg.getTo());
-            if(target != null && target.isOpen()){
-                send(target,msg);
+        try {
+
+            // Convert JSON → ChatMessage
+            ChatMessage message =
+                    objectMapper.readValue(
+                            textMessage.getPayload(),
+                            ChatMessage.class
+                    );
+
+            // Attach sender
+            message.setFrom(users.get(session.getId()));
+
+            // Attach timestamp
+            message.setTimestamp(LocalDateTime.now());
+
+
+            // Find event handler
+            Consumer<ChatMessage> handler =
+                    handlers.get(message.getEvent());
+
+
+            if (handler == null) {
+
+                sendError(session,
+                        "Unknown event: " + message.getEvent());
+
+                return;
             }
-        }
-        else handleBroadCast(msg);
-    }
 
-    //8 . helper methods
-    //send chatmessage as json to session
-    private void send(WebSocketSession session,ChatMessage message){
-        try{
-            String json = objectMapper.writeValueAsString(message);
-            session.sendMessage(new TextMessage(json));
-        }
-        catch (Exception e){
+            // Execute handler
+            handler.accept(message);
+
+        } catch (Exception e) {
+
+            sendError(session, "Invalid message format");
+
             e.printStackTrace();
         }
     }
 
 
-    //find session by username
-    private WebSocketSession findSessionByUser(String username){
-        for(Map.Entry<String,String> entry: users.entrySet()){
-            if(entry.getValue().equals(username)){
+    /*
+     ============================================================
+     7. CONNECTION CLOSED
+    */
+
+    @Override
+    public void afterConnectionClosed(
+            WebSocketSession session,
+            CloseStatus status
+    ) {
+
+        String username = users.get(session.getId());
+
+        sessions.remove(session.getId());
+
+        users.remove(session.getId());
+
+        System.out.println("Disconnected: " + username);
+    }
+
+
+    /*
+     ============================================================
+     8. EVENT HANDLERS
+     ============================================================
+    */
+
+
+    /*
+     PRIVATE MESSAGE HANDLER
+     Send message to specific user
+    */
+
+    private void handlePrivateMessage(ChatMessage message) {
+
+        WebSocketSession target =
+                findSessionByUsername(message.getTo());
+
+        if (target != null && target.isOpen()) {
+
+            sendMessage(target, message);
+        }
+    }
+
+
+    /*
+     BROADCAST MESSAGE HANDLER
+     Send message to all users
+    */
+
+    private void handleBroadcast(ChatMessage message) {
+
+        sessions.values().forEach(session -> {
+
+            if (session.isOpen()) {
+
+                sendMessage(session, message);
+            }
+        });
+    }
+
+
+    /*
+     SYSTEM NOTIFICATION HANDLER
+    */
+
+    private void handleNotification(ChatMessage message) {
+
+        message.setFrom("SYSTEM");
+
+        handleBroadcast(message);
+    }
+
+
+    /*
+     REALTIME EVENT HANDLER
+
+     Used for:
+     typing indicator
+     live updates
+    */
+
+    private void handleRealtimeEvent(ChatMessage message) {
+
+        if (message.getTo() != null) {
+
+            handlePrivateMessage(message);
+
+        } else {
+
+            handleBroadcast(message);
+        }
+    }
+
+
+    /*
+     FILE MESSAGE HANDLER
+
+     This is used when file uploaded via HTTP
+     and file URL is emitted via WebSocket
+    */
+
+    private void handleFileMessage(ChatMessage message) {
+
+        handleBroadcast(message);
+    }
+
+
+    /*
+     ============================================================
+     9. HELPER METHODS
+     ============================================================
+    */
+
+
+    /*
+     Send ChatMessage object as JSON
+    */
+
+    private void sendMessage(
+            WebSocketSession session,
+            ChatMessage message
+    ) {
+
+        try {
+
+            String json =
+                    objectMapper.writeValueAsString(message);
+
+            session.sendMessage(new TextMessage(json));
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+        }
+    }
+
+
+    /*
+     Send error message
+    */
+
+    private void sendError(
+            WebSocketSession session,
+            String error
+    ) {
+
+        try {
+
+            session.sendMessage(
+                    new TextMessage("ERROR: " + error)
+            );
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+        }
+    }
+
+
+    /*
+     Find session by username
+    */
+
+    private WebSocketSession findSessionByUsername(
+            String username
+    ) {
+
+        for (Map.Entry<String, String> entry : users.entrySet()) {
+
+            if (entry.getValue().equals(username)) {
+
                 return sessions.get(entry.getKey());
             }
         }
+
         return null;
     }
+
+
+    /*
+     ============================================================
+     10. PUBLIC METHOD FOR FILE URL BROADCAST
+
+     This will be called from FileUploadController
+    */
+
+    public void broadcastFileUrl(
+            ChatMessage message
+    ) {
+
+        handleFileMessage(message);
+    }
+
 }
