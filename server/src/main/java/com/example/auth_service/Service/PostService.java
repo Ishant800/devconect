@@ -7,16 +7,11 @@ import com.example.auth_service.Entity.User;
 import com.example.auth_service.Repository.AuthRepo;
 import com.example.auth_service.Repository.PostRepo;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
 @Service
 public class PostService {
@@ -29,17 +24,17 @@ public class PostService {
     @Autowired
     private CloudinaryService cloudinaryService;
 
-    public Post createPost(PostUpdateDto dto, MultipartFile postImage) throws IOException {
-        Long userId = dto.getUserId();;
-        User user = repo.findById(userId).orElseThrow(()-> new RuntimeException("user not found"));
+    public Post createPost(PostUpdateDto dto) throws IOException {
+
+        User user = repo.findById(dto.getUserId()).orElseThrow(()-> new RuntimeException("user not found"));
 
         Post post = new Post();
         post.setUser(user);
         post.setContent(dto.getContent());
         post.setCreatedAt(LocalDateTime.now());
 
-        if(postImage != null && !postImage.isEmpty()){
-            String imageUrl = cloudinaryService.uplaodFile(postImage);
+        if(dto.getImageUrl() != null && !dto.getImageUrl().isEmpty()){
+            String imageUrl = cloudinaryService.uplaodFile(dto.getImageUrl());
             post.setImageUrl(imageUrl);
         }
 

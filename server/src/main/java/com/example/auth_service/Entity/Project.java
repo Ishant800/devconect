@@ -31,7 +31,7 @@ public class Project {
     private User user;
 
     @OneToMany(mappedBy = "project",cascade = CascadeType.ALL)
-   @JsonIgnoreProperties("project")
+    @JsonIgnoreProperties("project")
     private List<ProjectComment> comments = new ArrayList<>();
 
     @OneToMany(mappedBy = "project",cascade = CascadeType.ALL)

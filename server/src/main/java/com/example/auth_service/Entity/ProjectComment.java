@@ -1,6 +1,6 @@
 package com.example.auth_service.Entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import jakarta.persistence.*;
 import lombok.Data;
 

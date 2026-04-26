@@ -28,11 +28,11 @@ public class Post {
     private LocalDateTime updatedAt;
 
 
-    @OneToMany(mappedBy = "posts",cascade = CascadeType.ALL)
-    private List<Comment> comments = new ArrayList<>();
-
-    @OneToMany(mappedBy = "posts",cascade = CascadeType.ALL)
-    private List<Like> likes = new ArrayList<>();
+//    @OneToMany(mappedBy = "posts",cascade = CascadeType.ALL)
+//    private List<Comment> comments = new ArrayList<>();
+//
+//    @OneToMany(mappedBy = "posts",cascade = CascadeType.ALL)
+//    private List<Like> likes = new ArrayList<>();
 
     @PrePersist
     private void onCreate(){

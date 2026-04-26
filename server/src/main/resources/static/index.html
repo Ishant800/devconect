@@ -1,273 +1,586 @@
+<!--<!DOCTYPE html>-->
+<!--<html lang="en">-->
+<!--<head>-->
+<!--    <meta charset="UTF-8">-->
+<!--    <title>Realtime Chat • Cloudinary + WebSocket</title>-->
+
+<!--    <style>-->
+
+<!--        body{-->
+<!--            margin:0;-->
+<!--            font-family: system-ui, -apple-system, Segoe UI, Roboto;-->
+<!--            background: linear-gradient(135deg,#0f172a,#020617);-->
+<!--            color:white;-->
+<!--            height:100vh;-->
+<!--            display:flex;-->
+<!--            justify-content:center;-->
+<!--            align-items:center;-->
+<!--        }-->
+
+<!--        .chat-container{-->
+<!--            width:500px;-->
+<!--            height:700px;-->
+<!--            background:#020617;-->
+<!--            border-radius:15px;-->
+<!--            display:flex;-->
+<!--            flex-direction:column;-->
+<!--            box-shadow:0 0 40px rgba(0,0,0,0.6);-->
+<!--        }-->
+
+<!--        .header{-->
+<!--            padding:15px;-->
+<!--            font-weight:bold;-->
+<!--            border-bottom:1px solid #1e293b;-->
+<!--            text-align:center;-->
+<!--            background:#020617;-->
+<!--        }-->
+
+<!--        .messages{-->
+<!--            flex:1;-->
+<!--            padding:15px;-->
+<!--            overflow-y:auto;-->
+<!--        }-->
+
+<!--        .message{-->
+<!--            margin-bottom:12px;-->
+<!--            padding:10px;-->
+<!--            border-radius:10px;-->
+<!--            background:#1e293b;-->
+<!--            animation:fadeIn 0.2s ease;-->
+<!--        }-->
+
+<!--        .self{-->
+<!--            background:#2563eb;-->
+<!--        }-->
+
+<!--        .file{-->
+<!--            background:#059669;-->
+<!--        }-->
+
+<!--        .input-area{-->
+<!--            display:flex;-->
+<!--            padding:10px;-->
+<!--            border-top:1px solid #1e293b;-->
+<!--        }-->
+
+<!--        input[type="text"]{-->
+<!--            flex:1;-->
+<!--            padding:10px;-->
+<!--            border:none;-->
+<!--            outline:none;-->
+<!--            border-radius:8px;-->
+<!--            background:#1e293b;-->
+<!--            color:white;-->
+<!--        }-->
+
+<!--        button{-->
+<!--            margin-left:10px;-->
+<!--            padding:10px 15px;-->
+<!--            border:none;-->
+<!--            border-radius:8px;-->
+<!--            background:#2563eb;-->
+<!--            color:white;-->
+<!--            cursor:pointer;-->
+<!--        }-->
+
+<!--        button:hover{-->
+<!--            background:#1d4ed8;-->
+<!--        }-->
+
+<!--        .file-input{-->
+<!--            display:none;-->
+<!--        }-->
+
+<!--        img{-->
+<!--            max-width:200px;-->
+<!--            border-radius:8px;-->
+<!--            margin-top:5px;-->
+<!--        }-->
+
+<!--        @keyframes fadeIn{-->
+<!--            from{-->
+<!--                opacity:0;-->
+<!--                transform:translateY(5px);-->
+<!--            }-->
+<!--            to{-->
+<!--                opacity:1;-->
+<!--                transform:translateY(0);-->
+<!--            }-->
+<!--        }-->
+
+<!--    </style>-->
+<!--</head>-->
+
+<!--<body>-->
+
+<!--<div class="chat-container">-->
+
+<!--    <div class="header">-->
+<!--        Realtime Chat 🚀-->
+<!--    </div>-->
+
+<!--    <div class="messages" id="messages"></div>-->
+
+<!--    <div class="input-area">-->
+
+<!--        <input id="textInput" placeholder="Type message...">-->
+
+<!--        <button onclick="sendMessage()">Send</button>-->
+
+<!--        <button onclick="selectFile()">File</button>-->
+
+<!--        <input type="file" id="fileInput" class="file-input">-->
+
+<!--    </div>-->
+
+<!--</div>-->
+
+
+<!--<script>-->
+
+<!--    const ws = new WebSocket("ws://localhost:8081/ws");-->
+
+<!--    const messagesDiv = document.getElementById("messages");-->
+
+<!--    const textInput = document.getElementById("textInput");-->
+
+<!--    const fileInput = document.getElementById("fileInput");-->
+
+<!--    let username = "";-->
+
+
+<!--    ws.onmessage = (event)=>{-->
+
+<!--        try{-->
+
+<!--            const msg = JSON.parse(event.data);-->
+
+<!--            displayMessage(msg);-->
+
+<!--        }-->
+<!--        catch{-->
+
+<!--            username = event.data;-->
+
+<!--            displaySystem(event.data);-->
+
+<!--        }-->
+<!--    };-->
+
+
+<!--    function sendMessage(){-->
+
+<!--        const text = textInput.value;-->
+
+<!--        if(!text) return;-->
+
+<!--        const msg = {-->
+
+<!--            event:"BROADCAST",-->
+<!--            message:text-->
+
+<!--        };-->
+
+<!--        ws.send(JSON.stringify(msg));-->
+
+<!--        textInput.value="";-->
+<!--    }-->
+
+
+<!--    function displayMessage(msg){-->
+
+<!--        const div = document.createElement("div");-->
+
+<!--        div.classList.add("message");-->
+
+<!--        if(msg.event === "FILE"){-->
+
+<!--            div.classList.add("file");-->
+
+<!--            if(msg.fileUrl.match(/\.(jpeg|jpg|png|gif)$/)){-->
+
+<!--                div.innerHTML =-->
+<!--                `<b>${msg.from}</b><br>-->
+<!--                <img src="${msg.fileUrl}">-->
+<!--                <br><a href="${msg.fileUrl}" target="_blank">Download</a>`;-->
+
+<!--            }-->
+<!--            else{-->
+
+<!--                div.innerHTML =-->
+<!--                `<b>${msg.from}</b><br>-->
+<!--                <a href="${msg.fileUrl}" target="_blank">-->
+<!--                Download File-->
+<!--                </a>`;-->
+<!--            }-->
+
+<!--        }-->
+<!--        else{-->
+
+<!--            div.innerHTML =-->
+<!--            `<b>${msg.from}</b><br>${msg.message}`;-->
+<!--        }-->
+
+<!--        messagesDiv.appendChild(div);-->
+
+<!--        messagesDiv.scrollTop = messagesDiv.scrollHeight;-->
+<!--    }-->
+
+
+<!--    function displaySystem(text){-->
+
+<!--        const div = document.createElement("div");-->
+
+<!--        div.classList.add("message");-->
+
+<!--        div.innerHTML = `<i>${text}</i>`;-->
+
+<!--        messagesDiv.appendChild(div);-->
+<!--    }-->
+
+
+<!--    function selectFile(){-->
+
+<!--        fileInput.click();-->
+<!--    }-->
+
+
+<!--    fileInput.onchange = async ()=>{-->
+
+<!--        const file = fileInput.files[0];-->
+
+<!--        if(!file) return;-->
+
+<!--        const formData = new FormData();-->
+
+<!--        formData.append("file",file);-->
+
+<!--        await fetch("http://localhost:8081/fileUpload/upload",{-->
+
+<!--            method:"POST",-->
+
+<!--            body:formData-->
+
+<!--        });-->
+
+<!--    };-->
+
+
+<!--</script>-->
+
+<!--</body>-->
+
+<!--</html>-->
+
+
+
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Realtime Chat • Cloudinary + WebSocket</title>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC Audio Connect</title>
     <style>
-
-        body{
-            margin:0;
-            font-family: system-ui, -apple-system, Segoe UI, Roboto;
-            background: linear-gradient(135deg,#0f172a,#020617);
-            color:white;
-            height:100vh;
-            display:flex;
-            justify-content:center;
-            align-items:center;
+        :root {
+            --primary: #4a90e2;
+            --danger: #e74c3c;
+            --success: #2ecc71;
+            --bg: #f5f7fa;
         }
 
-        .chat-container{
-            width:500px;
-            height:700px;
-            background:#020617;
-            border-radius:15px;
-            display:flex;
-            flex-direction:column;
-            box-shadow:0 0 40px rgba(0,0,0,0.6);
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
         }
 
-        .header{
-            padding:15px;
-            font-weight:bold;
-            border-bottom:1px solid #1e293b;
-            text-align:center;
-            background:#020617;
+        .container {
+            width: 100%;
+            max-width: 400px;
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
         }
 
-        .messages{
-            flex:1;
-            padding:15px;
-            overflow-y:auto;
+        h2 { color: #333; text-align: center; margin-top: 0; }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
         }
 
-        .message{
-            margin-bottom:12px;
-            padding:10px;
-            border-radius:10px;
-            background:#1e293b;
-            animation:fadeIn 0.2s ease;
+        input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            outline: none;
         }
 
-        .self{
-            background:#2563eb;
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: opacity 0.2s;
         }
 
-        .file{
-            background:#059669;
+        button:active { opacity: 0.7; }
+
+        .btn-connect { background: var(--primary); color: white; }
+        .btn-call { background: var(--success); color: white; padding: 5px 15px; }
+        .btn-accept { background: var(--success); color: white; flex: 1; }
+        .btn-reject { background: var(--danger); color: white; flex: 1; }
+
+        #status {
+            text-align: center;
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 5px;
         }
 
-        .input-area{
-            display:flex;
-            padding:10px;
-            border-top:1px solid #1e293b;
+        #user-list {
+            list-style: none;
+            padding: 0;
         }
 
-        input[type="text"]{
-            flex:1;
-            padding:10px;
-            border:none;
-            outline:none;
-            border-radius:8px;
-            background:#1e293b;
-            color:white;
+        #user-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid #eee;
         }
 
-        button{
-            margin-left:10px;
-            padding:10px 15px;
-            border:none;
-            border-radius:8px;
-            background:#2563eb;
-            color:white;
-            cursor:pointer;
+        #incomingCall {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 350px;
+            background: white;
+            border: 2px solid var(--primary);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            z-index: 1000;
         }
 
-        button:hover{
-            background:#1d4ed8;
-        }
+        .call-actions { display: flex; gap: 10px; margin-top: 15px; }
 
-        .file-input{
-            display:none;
-        }
-
-        img{
-            max-width:200px;
-            border-radius:8px;
-            margin-top:5px;
-        }
-
-        @keyframes fadeIn{
-            from{
-                opacity:0;
-                transform:translateY(5px);
-            }
-            to{
-                opacity:1;
-                transform:translateY(0);
-            }
-        }
-
+        /* Hide audio elements */
+        audio { display: none; }
     </style>
 </head>
-
 <body>
 
-<div class="chat-container">
+<div class="container">
+    <h2>Audio Call</h2>
 
-    <div class="header">
-        Realtime Chat 🚀
+    <div id="status">Status: Disconnected</div>
+
+    <div class="input-group">
+        <input type="text" id="username" placeholder="Your Name...">
+        <button class="btn-connect" onclick="connect()">Go Online</button>
     </div>
 
-    <div class="messages" id="messages"></div>
-
-    <div class="input-area">
-
-        <input id="textInput" placeholder="Type message...">
-
-        <button onclick="sendMessage()">Send</button>
-
-        <button onclick="selectFile()">File</button>
-
-        <input type="file" id="fileInput" class="file-input">
-
-    </div>
-
+    <h3>Available Users</h3>
+    <ul id="user-list"></ul>
 </div>
 
+<div id="incomingCall">
+    <div style="text-align:center">
+        <strong>Incoming Audio Call</strong>
+        <p id="callerName">User is calling...</p>
+    </div>
+    <div class="call-actions">
+        <button class="btn-accept" onclick="acceptCall()">Accept</button>
+        <button class="btn-reject" onclick="rejectCall()">Decline</button>
+    </div>
+</div>
+
+<audio id="remoteAudio" autoplay></audio>
 
 <script>
+    let ws;
+    let localStream;
+    let peerConnection;
+    let myUsername;
+    let targetUser;
+    let incomingOfferData = null;
 
-    const ws = new WebSocket("ws://localhost:8081/ws");
-
-    const messagesDiv = document.getElementById("messages");
-
-    const textInput = document.getElementById("textInput");
-
-    const fileInput = document.getElementById("fileInput");
-
-    let username = "";
-
-
-    ws.onmessage = (event)=>{
-
-        try{
-
-            const msg = JSON.parse(event.data);
-
-            displayMessage(msg);
-
-        }
-        catch{
-
-            username = event.data;
-
-            displaySystem(event.data);
-
-        }
+    const rtcConfig = {
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
     };
 
+    // 1. Initial Signaling Setup
+    function connect() {
+        myUsername = document.getElementById("username").value;
+        if (!myUsername) return alert("Please enter a username");
 
-    function sendMessage(){
+        // Dynamic protocol for Mobile/Production (ws vs wss)
+        const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        ws = new WebSocket(`${protocol}${window.location.host}/signal`);
 
-        const text = textInput.value;
-
-        if(!text) return;
-
-        const msg = {
-
-            event:"BROADCAST",
-            message:text
-
+        ws.onopen = () => {
+            ws.send(JSON.stringify({ type: "login", username: myUsername }));
+            updateStatus("Online as " + myUsername);
         };
 
-        ws.send(JSON.stringify(msg));
-
-        textInput.value="";
-    }
-
-
-    function displayMessage(msg){
-
-        const div = document.createElement("div");
-
-        div.classList.add("message");
-
-        if(msg.event === "FILE"){
-
-            div.classList.add("file");
-
-            if(msg.fileUrl.match(/\.(jpeg|jpg|png|gif)$/)){
-
-                div.innerHTML =
-                `<b>${msg.from}</b><br>
-                <img src="${msg.fileUrl}">
-                <br><a href="${msg.fileUrl}" target="_blank">Download</a>`;
-
+        ws.onmessage = async (msg) => {
+            const data = JSON.parse(msg.data);
+            switch(data.type) {
+                case "user-list":
+                    renderUserList(data.users);
+                    break;
+                case "offer":
+                    handleIncomingOffer(data);
+                    break;
+                case "answer":
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+                    updateStatus("Call Connected");
+                    break;
+                case "candidate":
+                    if (peerConnection) {
+                        await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+                    }
+                    break;
             }
-            else{
+        };
+    }
 
-                div.innerHTML =
-                `<b>${msg.from}</b><br>
-                <a href="${msg.fileUrl}" target="_blank">
-                Download File
-                </a>`;
-            }
+    // 2. Media Acquisition (Crucial for Mobile)
+    async function setupLocalAudio() {
+        try {
+            // Re-use stream if already active
+            if (localStream) return true;
 
+            localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            updateStatus("Microphone ready");
+            return true;
+        } catch (err) {
+            console.error(err);
+            updateStatus("Mic Error: Use HTTPS or check permissions");
+            return false;
         }
-        else{
-
-            div.innerHTML =
-            `<b>${msg.from}</b><br>${msg.message}`;
-        }
-
-        messagesDiv.appendChild(div);
-
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 
+    // 3. Initiate Call
+    async function callUser(user) {
+        targetUser = user;
+        updateStatus("Ringing " + user + "...");
 
-    function displaySystem(text){
+        const success = await setupLocalAudio();
+        if (!success) return;
 
-        const div = document.createElement("div");
+        initPeerConnection();
 
-        div.classList.add("message");
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
 
-        div.innerHTML = `<i>${text}</i>`;
-
-        messagesDiv.appendChild(div);
+        ws.send(JSON.stringify({
+            type: "offer",
+            target: targetUser,
+            offer: offer
+        }));
     }
 
-
-    function selectFile(){
-
-        fileInput.click();
+    // 4. Handle Incoming Call
+    function handleIncomingOffer(data) {
+        incomingOfferData = data.offer;
+        targetUser = data.username;
+        document.getElementById("callerName").innerText = targetUser + " wants to talk";
+        document.getElementById("incomingCall").style.display = "block";
     }
 
+    async function acceptCall() {
+        document.getElementById("incomingCall").style.display = "none";
 
-    fileInput.onchange = async ()=>{
+        const success = await setupLocalAudio();
+        if (!success) return;
 
-        const file = fileInput.files[0];
+        initPeerConnection();
 
-        if(!file) return;
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingOfferData));
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
 
-        const formData = new FormData();
+        ws.send(JSON.stringify({
+            type: "answer",
+            target: targetUser,
+            answer: answer
+        }));
 
-        formData.append("file",file);
+        updateStatus("Call Connected");
+    }
 
-        await fetch("http://localhost:8081/fileUpload/upload",{
+    // 5. Peer Connection Logic
+    function initPeerConnection() {
+        peerConnection = new RTCPeerConnection(rtcConfig);
 
-            method:"POST",
-
-            body:formData
-
+        // Add local audio tracks to the connection
+        localStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, localStream);
         });
 
-    };
+        // Send ICE candidates to the other peer
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                ws.send(JSON.stringify({
+                    type: "candidate",
+                    target: targetUser,
+                    candidate: event.candidate
+                }));
+            }
+        };
 
+        // Play the remote audio
+        peerConnection.ontrack = (event) => {
+            const remoteAudio = document.getElementById("remoteAudio");
+            if (remoteAudio.srcObject !== event.streams[0]) {
+                remoteAudio.srcObject = event.streams[0];
+            }
+        };
 
+        peerConnection.onconnectionstatechange = () => {
+            updateStatus("Connection: " + peerConnection.connectionState);
+        };
+    }
+
+    // UI Helpers
+    function renderUserList(users) {
+        const list = document.getElementById("user-list");
+        list.innerHTML = "";
+        users.forEach(u => {
+            if (u === myUsername) return;
+            const li = document.createElement("li");
+            li.innerHTML = `<span>${u}</span> <button class="btn-call" onclick="callUser('${u}')">Call</button>`;
+            list.appendChild(li);
+        });
+    }
+
+    function updateStatus(msg) {
+        document.getElementById("status").innerText = "Status: " + msg;
+    }
+
+    function rejectCall() {
+        document.getElementById("incomingCall").style.display = "none";
+        updateStatus("Call Rejected");
+    }
 </script>
-
 </body>
-
 </html>

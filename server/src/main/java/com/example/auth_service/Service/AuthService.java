@@ -13,14 +13,12 @@ import com.example.auth_service.Repository.AuthRepo;
 import com.example.auth_service.Response.AuthResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.Map;
 
 @RequiredArgsConstructor
 @Service
@@ -28,8 +26,7 @@ public class AuthService {
     @Autowired
     private AuthRepo authRepo;
 
-    @Autowired
-    private RestTemplate restTemplate;
+
 
     @Autowired
     private JwtUtils jwtUtils;
@@ -45,30 +42,7 @@ public class AuthService {
 
     private BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
-    public User signup(SignupRequest request){
-        User auth = new User();
-        auth.setEmail(request.getEmail());
-        auth.setPassword(encoder.encode(request.getPassword()));
-        auth.setRole("USER");
 
-        User saveddata = authRepo.save(auth);
-
-        SignupRequest userservice = new SignupRequest();
-        userservice.setAuthId(saveddata.getId());
-        userservice.setUsername(request.getUsername());
-        userservice.setBio(request.getBio());
-        userservice.setProfilePic(request.getProfilePic());
-
-        String url = "http://localhost:8082/api/create";
-        try {
-            ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
-            System.out.println("User service response: " + response.getStatusCode());
-        } catch (Exception e) {
-            System.out.println("Error calling user service: " + e.getMessage());
-        }
-
-        return saveddata;
-    }
 
     public AuthResponse Register(RegisterRequest req){
         if(authRepo.existsByUsername(req.getUsername())  ){
@@ -81,9 +55,8 @@ public class AuthService {
         User auth = new User();
         auth.setEmail(req.getEmail());
         auth.setPassword(encoder.encode(req.getPassword()));
-        auth.setRole("ROLE_USER");
+        auth.setRole(req.getRole());
         auth.setUsername(req.getUsername());
-
 
         User saveddata = authRepo.save(auth);
         //generate acess token
@@ -103,8 +76,6 @@ public class AuthService {
     public AuthResponse login(AuthRequest request){
         User user = authRepo.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("Invalid email"));
-
-
         if(!encoder.matches(request.getPassword(), user.getPassword()))
             throw new RuntimeException("invalid password");
 
